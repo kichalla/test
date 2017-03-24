@@ -1,0 +1,47 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <KoreBuildRepo>git@github.com:kichalla/test.git</KoreBuildRepo>
+        <KoreBuildBranch>master</KoreBuildBranch>
+    </PropertyGroup>
+    <PropertyGroup>
+        <KoreBuildCloneDirectory>c:\temp\test</KoreBuildCloneDirectory>
+        <GitUser>My Push Bot</GitUser>
+        <GitEmail>kichalla@microsoft.com</GitEmail>
+        <GitAuthor>$(GitUser) &lt;$(GitEmail)&gt;</GitAuthor>
+        <GitConfigurationOptions>-c user.name=&quot;$(GitUser)&quot; -c user.email=&quot;$(GitEmail)&quot;</GitConfigurationOptions>
+        <SharedRuntimeFilePath>c:\temp\test\foo.txt</SharedRuntimeFilePath>
+        <VersionNumber>hello world!!</VersionNumber>
+    </PropertyGroup>  
+
+    <Target Name="MakeChanges">
+        <WriteLinesToFile
+        File="$(SharedRuntimeFilePath)"
+        Lines="$(VersionNumber)"
+        Overwrite="true" />
+
+        <Exec
+        Command="git $(GitConfigurationOptions) add $(SharedRuntimeFilePath)"
+        WorkingDirectory="$(KoreBuildCloneDirectory)" />
+
+        <PropertyGroup>
+            <_CommitChange>shared runtime to $(VersionNumber)</_CommitChange>
+        </PropertyGroup>
+    </Target>
+    <Target Name="_PushKoreBuild" DependsOnTargets="MakeChanges">
+        <Exec
+        Command="git $(GitConfigurationOptions) commit -q --author=&quot;$(GitAuthor)&quot; -m '$(_CommitChange)'"
+        IgnoreExitCode="true"
+        WorkingDirectory="$(KoreBuildCloneDirectory)"
+        Condition="'$(_CommitChange)' != ''">
+            <Output TaskParameter="ExitCode" PropertyName="CommitExitCode"/>
+        </Exec>
+
+        <Exec
+        Command="git $(GitConfigurationOptions) push -q $(KoreBuildRepo) $(KoreBuildBranch):$(KoreBuildBranch)"
+        WorkingDirectory="$(KoreBuildCloneDirectory)"
+        Condition="'$(CommitExitCode)'=='0'" />
+
+        <Warning Text="Skipping pushing update to KoreBuild. No changes detected."
+        Condition="'$(_CommitChange)' == ''"/>
+    </Target>
+  </Project>
